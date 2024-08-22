@@ -1,0 +1,62 @@
+#cloud-config
+write_files:
+  - path: /usr/local/bin/setup_warnings.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      # Total lifetime of the instance in minutes
+      TOTAL_MINUTES=${total_minutes}
+
+      # List of warning times (minutes before shutdown)
+      WARNING_TIMES=(30 20 10 5 4 3 2 1)
+
+      # Function to schedule a warning
+      schedule_warning() {
+          local minutes_left=$1
+          local warn_time=$((TOTAL_MINUTES - minutes_left))
+
+          echo "wall \"WARNING: This system will be destroyed in $minutes_left minutes!\"" | at now + $warn_time minutes
+      }
+
+      # Schedule all warnings
+      for minutes_left in "$${WARNING_TIMES[@]}"; do
+          schedule_warning $minutes_left
+      done
+
+      # Schedule the final shutdown
+      echo "shutdown -h now \"System lifetime expired. Shutting down.\"" | at now + $TOTAL_MINUTES minutes
+
+      echo "Warning system and shutdown have been scheduled."
+      echo "Use 'atq' to view scheduled jobs and 'atrm' to remove them if needed."
+
+users:
+- name: ${user}
+  groups: sudo
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  ssh-authorized-keys:
+    - ${minio_ssh_public_key}
+packages:
+- vim
+- git
+package_update: true
+package_upgrade: true
+
+power_state:
+  mode: reboot
+  message: Rebooting after package upgrades
+  timeout: 30
+  condition: True
+
+runcmd:
+- apt-get install ca-certificates curl
+- install -m 0755 -d /etc/apt/keyrings
+- curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+- chmod a+r /etc/apt/keyrings/docker.asc
+- echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+- apt-get update
+- apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+- usermod -aG docker ${user}
+- /usr/local/bin/setup_warnings.sh
+
