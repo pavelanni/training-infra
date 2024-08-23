@@ -21,6 +21,9 @@ if [ "$#" -ne 1 ]; then
 fi
 PANDOC_HOST=deep-rh
 PANDOC_CONNECTION=pandoc # this comes from the podman -remote system connection command above
+#PANDOC_IMAGE=pandoc/extra:latest-ubuntu
+PANDOC_IMAGE=pandoc-inter:latest
+# first argument is the markdown file
 MD_SOURCE=$1
 # Create a temp dir on the x86_64 machine
 TEMP_DIR=$(ssh $PANDOC_HOST mktemp -d)
@@ -30,10 +33,10 @@ bname=$(basename "$MD_SOURCE")
 FILENAME="${bname%.*}"
 # run the Podman command with the pandoc/extra image
 podman -c "$PANDOC_CONNECTION" \
-    run --rm --volume "$TEMP_DIR:/data" \
-    pandoc/extra:latest-ubuntu \
+    run --volume "$TEMP_DIR:/data" \
+    "$PANDOC_IMAGE" \
     "$MD_SOURCE" -o "$FILENAME.pdf" \
-    --template eisvogel --data-dir=/.pandoc --listings
+    --template eisvogel --data-dir=/.pandoc --pdf-engine=xelatex
 # copy the pdf to the current directory
 scp "$PANDOC_HOST:$TEMP_DIR/$FILENAME.pdf" .
 
