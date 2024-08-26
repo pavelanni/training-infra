@@ -5,11 +5,19 @@ terraform {
       source  = "hetznercloud/hcloud"
       version = "1.48.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
   }
 }
 
 provider "hcloud" {
   token = var.hcloud_token
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }
 
 # Generate SSH key
@@ -71,6 +79,9 @@ resource "hcloud_server" "miniolabs_server" {
     user                 = var.user
     total_minutes        = var.instance_lifetime_minutes
     minio_ssh_public_key = tls_private_key.gen_ssh_key[count.index].public_key_openssh
+    hostname             = format("%s-%02d", var.deployment_name, count.index + 1)
+    domain_name          = var.domain_name
+    certbot_email        = var.certbot_email
   })
 }
 
@@ -95,19 +106,48 @@ resource "hcloud_volume_attachment" "disk" {
   volume_id = hcloud_volume.disk[count.index].id
 }
 
+resource "cloudflare_record" "miniolabs" {
+  count   = var.student_count
+  zone_id = var.cloudflare_zone_id
+  name    = format("%s-%02d", var.deployment_name, count.index + 1)
+  content = hcloud_server.miniolabs_server[count.index].ipv4_address
+  type    = "A"
+  proxied = false
+  ttl     = 1
+}
+
 # Wait until cloud-init is done
 resource "null_resource" "cloud_init_wait" {
   count = var.student_count
+  connection {
+    host        = hcloud_server.miniolabs_server[count.index].ipv4_address
+    type        = "ssh"
+    user        = "root"
+    private_key = tls_private_key.gen_ssh_key[count.index].private_key_openssh
+  }
   provisioner "remote-exec" {
-    connection {
-      host        = hcloud_server.miniolabs_server[count.index].ipv4_address
-      type        = "ssh"
-      user        = "root"
-      private_key = tls_private_key.gen_ssh_key[count.index].private_key_openssh
-    }
     # we need this because cloud-init now returns 2 when there are warnings
     # see here: https://docs.cloud-init.io/en/latest/explanation/return_codes.html
-    inline = ["cloud-init status --wait ; status=$? ; if [ $status -eq 0 ] || [ $status -eq 2 ]; then exit 0; else exit 1; fi"]
+    # This is my old inline
+    #inline = ["cloud-init status --wait ; status=$? ; if [ $status -eq 0 ] || [ $status -eq 2 ]; then exit 0; else exit 1; fi"]
+    # This one is to address reboots problem
+    inline = [
+      "#!/bin/bash",
+      "timeout=600", # 10 minutes timeout
+      "end=$(($(date +%s) + timeout))",
+      "while [ $(date +%s) -lt $end ]; do",
+      "  cloud-init status",
+      "  status=$?",
+      "  if [ $status -eq 0 ] || [ $status -eq 2 ]; then",
+      "    echo \"Cloud-init finished successfully (status: $status)\"",
+      "    exit 0",
+      "  fi",
+      "  echo \"Waiting for cloud-init to finish... (last status: $status)\"",
+      "  sleep 10",
+      "done",
+      "echo 'Timeout waiting for cloud-init'",
+      "exit 1"
+    ]
   }
   depends_on = [hcloud_server.miniolabs_server]
 }

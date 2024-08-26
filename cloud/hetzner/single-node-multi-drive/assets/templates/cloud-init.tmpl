@@ -43,20 +43,25 @@ packages:
 package_update: true
 package_upgrade: true
 
-power_state:
-  mode: reboot
-  message: Rebooting after package upgrades
-  timeout: 30
-  condition: True
-
 runcmd:
+- hostnamectl set-hostname ${hostname}.${domain_name}
+- echo "127.0.0.1 ${hostname}.${domain_name} ${hostname}" >> /etc/hosts
+- echo "domain ${domain_name}" >> /etc/resolv.conf
+- echo "search ${domain_name}" >> /etc/resolv.conf
+- [ sh, -c, 'echo "preserve_hostname: true" >> /etc/cloud/cloud.cfg' ]
 - apt-get install ca-certificates curl
 - install -m 0755 -d /etc/apt/keyrings
 - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 - chmod a+r /etc/apt/keyrings/docker.asc
 - echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 - apt-get update
-- apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+- apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin nginx certbot python3-certbot-nginx
+- certbot --nginx -d ${hostname}.${domain_name} --noninteractive --agree-tos --email ${certbot_email}
 - usermod -aG docker ${user}
 - /usr/local/bin/setup_warnings.sh
+
+power_state:
+  mode: reboot
+  message: Rebooting after package upgrades
+  condition: test -f /var/run/reboot-required
 

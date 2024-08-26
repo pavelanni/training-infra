@@ -1,3 +1,18 @@
+---
+title: Working with MinIO Events
+listings-disable-line-numbers: true
+listings-no-page-break: true
+papersize: letter
+mainfont: Inter
+monofont: DejaVu Sans Mono
+header-includes:
+  - \usepackage{fontspec}
+logo: /opt/minio/images/minio-logo.png
+#logo-height: 0.4cm # default is 0.4cm
+copyright: MinIO, Inc., 2024
+graphics: true
+---
+
 # Pandoc tools
 
 ## Pandoc container

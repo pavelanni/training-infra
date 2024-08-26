@@ -1,5 +1,6 @@
 scratch/
 output/
+.DS_Store
 
 # Environment files are used to set TF variables and may contain sensitive information
 *.env
