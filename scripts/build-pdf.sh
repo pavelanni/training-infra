@@ -16,7 +16,7 @@ MD_SOURCE=$1
 bname=$(basename "$MD_SOURCE")
 FILENAME="${bname%.*}"
 # run the Podman command with the pandoc/extra image
-podman run --volume "$PWD:/data" \
+podman run --rm --volume "$PWD:/data" \
     "$PANDOC_IMAGE" \
     "$MD_SOURCE" -o "$FILENAME.pdf" \
     --template "$PANDOC_TEMPLATE" --data-dir=/.pandoc --pdf-engine=xelatex

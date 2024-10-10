@@ -1,0 +1,64 @@
+#cloud-config
+# NOTE: this cloud-init script is for Hetzner's CPX41 that has 240 GB drive
+users:
+- name: pavel
+  groups: sudo
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  ssh-authorized-keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjKRtj8EF1dvmTwvylKL5L1duCNGikHowdiX9mK8Rg9 pavel@pavel-mbp"
+packages:
+- vim
+- git
+package_update: true
+package_upgrade: true
+
+resize_rootfs: false
+write_files:
+- content: ""
+  # Any text
+  path: /etc/growroot-disabled
+
+runcmd:
+- - sgdisk
+  - -e
+  - /dev/sda
+- - partprobe
+- - parted
+  - -a
+  - optimal
+  - -s
+  - /dev/sda
+  - mkpart
+  - disk1
+  - xfs
+  - "20GiB"
+  - "70GiB"
+  - mkpart
+  - disk2
+  - xfs
+  - "70GiB"
+  - "120GiB"
+  - mkpart
+  - disk3
+  - xfs
+  - "120GiB"
+  - "170GiB"
+  - mkpart
+  - disk4
+  - xfs
+  - "170GiB"
+  - "220GiB"
+- - mkfs.xfs
+  - /dev/sda2
+- - mkfs.xfs
+  - /dev/sda3
+- - mkfs.xfs
+  - /dev/sda4
+- - mkfs.xfs
+  - /dev/sda5
+- - growpart
+  - /dev/sda
+  - "1"
+- - resize2fs
+  - /dev/sda1

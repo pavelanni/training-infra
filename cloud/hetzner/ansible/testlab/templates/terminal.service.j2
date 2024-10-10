@@ -1,0 +1,17 @@
+[Unit]
+Description=Web Terminal (Wetty)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker run --rm --name wetty \
+    -p 127.0.0.1:3000:3000 \
+    wettyoss/wetty:latest \
+    --base /terminal \
+    --title "MinIO Labs" \
+    --ssh-host {{ ssh_host }}
+ExecStop=/usr/bin/docker stop wetty
+
+[Install]
+WantedBy=multi-user.target

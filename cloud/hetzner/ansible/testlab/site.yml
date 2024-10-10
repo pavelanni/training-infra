@@ -1,0 +1,17 @@
+---
+- name: Copy files to all nodes
+  hosts: all
+  tasks:
+    - name: Copy docker compose files
+      vars:
+        home_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}"
+      copy:
+        src: "{{ home_dir }}/Projects/training-public/lab-setup"
+        dest: /home/minio/
+        mode: "0644"
+
+    - name: Copy index.html to the default nginx location
+      copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        mode: "0644"

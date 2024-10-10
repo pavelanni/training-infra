@@ -1,0 +1,18 @@
+#cloud-config
+resize_rootfs: false
+write_files:
+  - content: |
+    # Any text
+    path: /etc/growroot-disabled
+
+runcmd:
+  - [ sgdisk, -e, /dev/sda ]
+  - [ partprobe ]
+  - [ parted, -a, optimal, -s, /dev/sda, mkpart, disk1, xfs, "20%", "40%", mkpart, disk2, xfs, "40%", "60%", mkpart, disk3, xfs, "60%", "80%", mkpart, disk4, xfs, "80%", "100%" ]
+  - [ mkfs.xfs, /dev/sda2 ]
+  - [ mkfs.xfs, /dev/sda3 ]
+  - [ mkfs.xfs, /dev/sda4 ]
+  - [ mkfs.xfs, /dev/sda5 ]
+  - [ growpart, /dev/sda, "1" ] 
+  - [ resize2fs, /dev/sda1 ]
+
