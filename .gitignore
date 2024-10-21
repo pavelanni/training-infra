@@ -49,3 +49,5 @@ terraform.rc
 
 k3d-aistor
 single-server-cloud-init
+
+*-kubeconfig

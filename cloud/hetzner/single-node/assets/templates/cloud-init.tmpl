@@ -5,19 +5,71 @@ users:
   sudo: ALL=(ALL) NOPASSWD:ALL
   shell: /bin/bash
   ssh-authorized-keys:
-    - ${admin_public_key}
+  - ${admin_public_key}
 packages:
 - vim
 - git
 package_update: true
 package_upgrade: true
 
+resize_rootfs: false
+write_files:
+- content: ""
+  # Any text
+  path: /etc/growroot-disabled
+
 runcmd:
+# create 4 partitions
+- - sgdisk
+  - -e
+  - /dev/sda
+- - partprobe
+- - parted
+  - -a
+  - optimal
+  - -s
+  - /dev/sda
+  - mkpart
+  - disk1
+  - xfs
+  - "20GiB"
+  - "70GiB"
+  - mkpart
+  - disk2
+  - xfs
+  - "70GiB"
+  - "120GiB"
+  - mkpart
+  - disk3
+  - xfs
+  - "120GiB"
+  - "170GiB"
+  - mkpart
+  - disk4
+  - xfs
+  - "170GiB"
+  - "220GiB"
+- - mkfs.xfs
+  - /dev/sda2
+- - mkfs.xfs
+  - /dev/sda3
+- - mkfs.xfs
+  - /dev/sda4
+- - mkfs.xfs
+  - /dev/sda5
+- - growpart
+  - /dev/sda
+  - "1"
+- - resize2fs
+  - /dev/sda1
+# set hostname
 - hostnamectl set-hostname ${hostname}.${domain_name}
 - echo "127.0.0.1 ${hostname}.${domain_name} ${hostname}" >> /etc/hosts
 - echo "domain ${domain_name}" >> /etc/resolv.conf
 - echo "search ${domain_name}" >> /etc/resolv.conf
-- [ sh, -c, 'echo "preserve_hostname: true" >> /etc/cloud/cloud.cfg' ]
+- [sh, -c, 'echo "preserve_hostname: true" >> /etc/cloud/cloud.cfg']
+
+# install docker
 - apt-get install ca-certificates curl
 - install -m 0755 -d /etc/apt/keyrings
 - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -25,8 +77,25 @@ runcmd:
 - echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 - apt-get update
 - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin nginx certbot python3-certbot-nginx
+
+# install certbot and setup nginx
 - certbot --nginx -d ${hostname}.${domain_name} --noninteractive --agree-tos --email ${certbot_email}
+
+# add user to docker group
 - usermod -aG docker ${user}
+
+# install kind
+- curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+- chmod +x ./kind
+- mv ./kind /usr/local/bin/kind
+
+# install kubectl
+- curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+- install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# install MinIO client
+- curl -Lo ./mc https://dl.min.io/client/mc/release/linux-amd64/mc
+- install -o root -g root -m 0755 mc /usr/local/bin/mc
 
 power_state:
   mode: reboot

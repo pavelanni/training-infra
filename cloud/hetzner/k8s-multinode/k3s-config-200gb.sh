@@ -1,0 +1,7 @@
+#!/bin/bash
+DOMAIN_NAME="miniolabs.net"
+NODE_COUNT=4
+VOLUME_SIZE=200
+NODE_TYPE="cx22"
+HCLOUD_LOCATION="fsn1"
+ANSIBLE_USER="pavel"

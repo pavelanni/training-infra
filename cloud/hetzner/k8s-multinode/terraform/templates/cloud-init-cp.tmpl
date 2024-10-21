@@ -1,0 +1,35 @@
+#cloud-config
+users:
+- name: ${user}
+  groups: sudo
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  ssh-authorized-keys:
+  - ${admin_public_key}
+packages:
+- vim
+- git
+package_update: true
+package_upgrade: true
+
+runcmd:
+# set hostname
+- hostnamectl set-hostname ${hostname}.${domain_name}
+- echo "127.0.0.1 ${hostname}.${domain_name} ${hostname}" >> /etc/hosts
+- echo "domain ${domain_name}" >> /etc/resolv.conf
+- echo "search ${domain_name}" >> /etc/resolv.conf
+- [sh, -c, 'echo "preserve_hostname: true" >> /etc/cloud/cloud.cfg']
+
+# install kubectl
+- curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+- install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# install MinIO client
+- curl -Lo ./mc https://dl.min.io/client/mc/release/linux-amd64/mc
+- install -o root -g root -m 0755 mc /usr/local/bin/mc
+
+power_state:
+  mode: reboot
+  message: Rebooting after package upgrades
+  condition: test -f /var/run/reboot-required
+
